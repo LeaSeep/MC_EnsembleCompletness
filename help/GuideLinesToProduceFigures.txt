@@ -1,0 +1,27 @@
+Guidlines to produce paper-Figures
+
+Figure 1: PCA Loading Plots
+go to Tab Loadings and then
+Figure 1a) set 'PC on x-Axis' = 1 and 'PC on y-Axis' = 2
+Figure 1b) set 'PC on x-Axis' = 3 and 'PC on y-Axis' = 4
+Note: inside the R consolte you get the summary of Importance of the components
+(std. Dev., proportion of Variance, cumulative proportion)
+
+Figure 2: Maps for compound 1
+go to Tab PCA on PC1 and PC2
+select:
+Choose Structures: 5(cpd 1)
+Process: MD at 300K
+Start_structure: 1,2,3,4,5 (or all)
+Solvent: water
+Simulation Temperature: 300K
+Measured in: choose preferred option
+leave Ranges untouched
+Color Switch for binned Energy: choose preferred option
+Color by: Start_structure
+Figure 2a) ChargeStatus: neutral
+Figure 2b) ChargeStatus: charged
+Click GO_1 ( To plot on first plotting space, top left)
+Note: For each category there must be at least one option selected otherwise nothing will be plotted
+Note: To save this plot choose preferred Format and AFTERWARDS choose to save plot 1, 
+the plot will dissapear out of the app

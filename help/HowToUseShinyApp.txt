@@ -1,0 +1,41 @@
+Using the Shiny App
+
+PCA on PC1 and PC2:
+-You yan choose the structure referring to the Macrocycles - (cpd X -refers to names as in the puplication)
+-the process determines how the conformers(-snapchots) were generated
+--MD at different temperatures
+--long MD longer duration
+--SimAn stands for Simulating Annealing using the lowest engetic conformer(TopConf) or diverse start-conformers
+--BEST, minimised Prime, minimies Conformator are tested conformer generators (output has undergo energy minimization)
+--post-selected were low energy conformers which were found by MD and hat undergo MD again (MINI = energetic minimsed)
+-the charge status is relevant for all but structure
+-for different processes different start-conformers were given -all Processes have different 5 Start Structures, except
+--SimAn_TopConf (Simulating Annealing using the lowest energetic Conformer as start-conformer)
+--long MD (has 10 start-conformers, longer duration)
+-different solvent data not available for all processes!
+-Simulation Temperature (relevant for the hot MDs only)
+-measured in (for displaying Energy)
+-Sliders to cut out high energy conformers- please use slider appropiate to chosen measure (kacl or kj)
+-Color Switch only for illustrative purposes
+-choose in DropOut menu infomration you want to color
+
+--If you click GO1 the first plotting space will be filled with the selected data
+Note: if you want to change the Selection (even a color change) you have to click GO1 again
+
+If the plot is drawn you might want to choose a format you want to save a specific plot to.
+Note: will be saved to your current workspace(only changeable before starting the shinyApp)
+
+The Tab Density Maps and lightPCA are two different approaches to plot the exact same information seen in the PCA
+trying to overcome the issue of crowding and overplotting
+
+The tab Loadings is the Loading information of the underlying PCA space the data generated /was projected to.
+
+Note: all the above depend on the selected data in the tab PCA on PC1 and PC2
+
+Energy Diagram - the underlying data is for MD at 300K only and the 3 tested conformer generators, you can choose the structure /Charge status and the Solvent
+(except DMSO), the sliders can help to adjust resulting histogram. This is displaying the percentage of found confomers splitted in 4 energy bins.
+for comparison.
+
+The Tab PSA histograme (Polar Surface Area) displays available information based on data selected in tab PCA on PCA1 and PC2.
+Note not for all generated conformers the PSA was determined.
+ 
