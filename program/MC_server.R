@@ -62,7 +62,7 @@ PCA_results_all$Temperature<-as.numeric(PCA_results_all$Temperature)
 #PCA_results_all$PSA<-cut(PCA_results_all$PSA,breaks=c(30,80,100,180),include.lowest=TRUE)
 PCA_results_all$Total_HBonds<-as.character(PCA_results_all$Total_HBonds)
 PCA_results_all$Phase<-as.factor(PCA_results_all$Phase)
-reorder_df<-c("MD","MD400K","MD500K","longMD","revSA","SA", "miniMD", "ConfGen","BEST" ,"miniPrime","miniConf","lowE_MD","mini_lowE_MD")
+reorder_df<-c("MD","MD400K","MD500K","longMD","revSA","SA", "miniMD", "ConfGen","BEST" ,"miniPrime","miniConf","lowE_MD","mini_lowE_MD","BEST_new","Prime_new","ConfGen_new")
 PCA_results_all<-left_join(data.frame(process=reorder_df),PCA_results_all,by="process")
 PCA_results_all$process<-as.character(PCA_results_all$process)
 position_plot<<-0
@@ -94,24 +94,25 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 ##subset settings
 	options<-c(a,b,c,d,e,f,g)
 	if("all_structures" %in% a){a<-c("1","5","15","25","24","26","28")}
-	if("all_process" %in% b){b<-c("MD","MD400K","MD500K","longMD","revSA","SA","ConfGen","miniMD","BEST","miniPrime","miniConf","lowE_MD","mini_lowE_MD")}
+	if("all_process" %in% b){b<-c("MD","MD400K","MD500K","longMD","revSA","SA","ConfGen","miniMD","BEST","miniPrime","miniConf","lowE_MD","mini_lowE_MD","BEST_new","Prime_new","ConfGen_new")}
 	if("all_charged" %in% c){c<-c("neutral","charged")}
 	if("all_start_structure" %in% d){d<-c("1","2","3","4","5","6","7","8","9","10","TopConf","one","neutral","charged")} ##erstmal unwichtig aber falsch in matrix
 	if("all_solvents" %in% e){e<-c("Water","DMSO","CHCL3")}
-	if("all_temp" %in% f){f<-c("300","400","500")}
+	if("all_temp" %in% f){f<-c("300","400","500","0")}
 ##select data based on user input
 	if(input$all_data == TRUE){
 		pass
 		#selected_data=PCA_results_all # achtung hier
 	}else{
 		print("data will be subsetted")
-		
-		selected_data<-subset(PCA_results_all, subset= (structure_derieved==a[1] | structure_derieved==a[2] |structure_derieved==a[3] |structure_derieved==a[4] |structure_derieved==a[5] |structure_derieved==a[6] |structure_derieved==a[7])& (process==b[1]|process==b[2]|process==b[3]|process==b[4]|process==b[5]|process==b[6]|process==b[7]|process==b[8]|process==b[9]|process==b[10])&(charge_status==c[1]|charge_status==c[2])&
-		(start_structure_number==d[1] |start_structure_number==d[2]|start_structure_number==d[3] |start_structure_number==d[4] |start_structure_number==d[5] |start_structure_number==d[6]|start_structure_number==d[7]|start_structure_number==d[8]|start_structure_number==d[9]|start_structure_number==d[10]|start_structure_number==d[11]|start_structure_number==d[12]|start_structure_number==d[13]|start_structure_number==d[14])&(solvent==e[1]|solvent==e[2]|solvent==e[3])&(Temperature==f[1]|Temperature==f[2]|Temperature==f[3])
+		print(options)
+		selected_data<-subset(PCA_results_all, subset= (structure_derieved==a[1] | structure_derieved==a[2] |structure_derieved==a[3] |structure_derieved==a[4] |structure_derieved==a[5] |structure_derieved==a[6] |structure_derieved==a[7])& (process==b[1]|process==b[2]|process==b[3]|process==b[4]|process==b[5]|process==b[6]|process==b[7]|process==b[8]|process==b[9]|process==b[10]|process==b[11]|process==b[12]|process==b[13]|process==b[14]|process==b[15]|process==b[16])&(charge_status==c[1]|charge_status==c[2])&
+		(start_structure_number==d[1] |start_structure_number==d[2]|start_structure_number==d[3] |start_structure_number==d[4] |start_structure_number==d[5] |start_structure_number==d[6]|start_structure_number==d[7]|start_structure_number==d[8]|start_structure_number==d[9]|start_structure_number==d[10]|start_structure_number==d[11]|start_structure_number==d[12]|start_structure_number==d[13]|start_structure_number==d[14])&(solvent==e[1]|solvent==e[2]|solvent==e[3])&(Temperature==f[1]|Temperature==f[2]|Temperature==f[3]|Temperature==f[4])
 	)}
 	print(dim(selected_data))
 ##when only 2 way comparison different colors
 	if(length(unique(selected_data[,color]))==2){palette=c("Set2")}else{palette=c("Spectral")}
+	if(length(unique(selected_data[,color]))==1){palette=c("grey")}
 	print(palette)
 ##adapt Energy based inputbased on slider
 	title<-paste0(as.character(options),collapse="_")
@@ -141,9 +142,13 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 		}	
 	}else{	
 		if(color_user=="Energy_Unnamed_c"){color_user="Energy_Unnamed"}
+	  if(length(unique(selected_data[,color]))==1){
+	    p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_manual(values=palette)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+	  }else{
 ##handle color advising when comparison to miniMD (always same color)
-		PCA_results$process<-factor(PCA_results$process, levels=c("MD","MD400K","MD500K","longMD","revSA","SA", "miniMD", "ConfGen","BEST" ,"miniPrime","miniConf"))
+		PCA_results$process<-factor(PCA_results$process, levels=c("MD","MD400K","MD500K","longMD","revSA","SA", "miniMD", "ConfGen","BEST" ,"miniPrime","miniConf","BEST_new","Prime_new","ConfGen_new"))
 	p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_brewer(palette=palette)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+	  }
 	}
 
 ##return results
