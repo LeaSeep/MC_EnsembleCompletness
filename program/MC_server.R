@@ -2,14 +2,22 @@ library(shiny)
 library(grid)
 library(RColorBrewer)
 library(dplyr)
+library(ggExtra)
 library(ggplot2)
+library(vegan)
+library(ggpubr)
 
 server<-function(input,output){
 ###############################################################################################################################
 #Saving Function
-set_panel_size <- function(p=NULL, g=ggplotGrob(p), file=NULL, 
-				output="powerpoint",
-                           margin = unit(1,"mm")){
+set_panel_size <- function(p=NULL, file=NULL, output="powerpoint"){
+  if("ggExtraPlot"%in%(class(p))){
+    g=p
+    margin = unit(10,"mm")
+  }else{
+    g=ggplotGrob(p)
+    margin = unit(1,"mm")
+    }
 	##options
 	if(output=="powerpoint"){
 	width=unit(12, "cm")
@@ -39,17 +47,23 @@ set_panel_size <- function(p=NULL, g=ggplotGrob(p), file=NULL,
 }
 
 ################################################################################################################################
-	##Setup data and ranges
+OverlapDist<<-list()	
+##Setup data and ranges
 	PCA_results_all<-as.data.frame(PCA_results_all_data$x)
-	global_min<-min(min(PCA_results_all$PC1),min(PCA_results_all$PC2))
-	global_max<-max(max(PCA_results_all$PC1),max(PCA_results_all$PC2))
+	PCA_results_all$Energy_kj=as.numeric(PCA_results_all$Energy_kj)
+	PCA_results_all$Energy_kcal=as.numeric(PCA_results_all$Energy_kcal)
+	global_min<-round(min(min(PCA_results_all$PC1),min(PCA_results_all$PC2)))
+	global_max<-round(max(max(PCA_results_all$PC1),max(PCA_results_all$PC2)))
 	x_lim<-c(global_min,global_max)
 	y_lim<-c(global_min,global_max)
 	PCA_results_all$Temperature<-gsub("K","",PCA_results_all$Temperature)
 	a<-dim(PCA_results_all)
 	print(paste0("orginial DataFrames dimensions: ",a))
-	output$slider_energy_kj<-renderUI({sliderInput("energy_slider_kj","Energy range kj", min=0 , max=round(max(PCA_results_all$Energy_kj)+1), value=max(PCA_results_all$Energy_kj))})
-	output$slider_energy_kcal<-renderUI({sliderInput("energy_slider_kcal","Energy range kcal", min=0 , max=round(max(PCA_results_all$Energy_kcal)+1), value=max(PCA_results_all$Energy_kcal))})
+	maxEnergy_kj=max(PCA_results_all$Energy_kj)
+	maxEnergy_kcal=max(PCA_results_all$Energy_kcal)
+	
+	output$slider_energy_kj<-renderUI({sliderInput(inputId="energy_slider_kj",label="Energy range kj", min=0 , max=maxEnergy_kj+1, value=maxEnergy_kj,round=T)})
+	output$slider_energy_kcal<-renderUI({sliderInput("energy_slider_kcal","Energy range kcal", min=0 , max=maxEnergy_kcal+1, value=maxEnergy_kcal)})
 ################################################################################################################################
 	##put all data into right data type
 PCA_results_all$Energy_Unnamed<-as.numeric(PCA_results_all$Energy_Unnamed) #wird mit relativer Energie Ersetzt
@@ -75,7 +89,7 @@ results<-"test"
 #list(input$go_1,input$go_2,input$go_3,input$go_4,input$go_5,input$go_6,input$go_7)
 #})
 
-button_clicked<-function(structure=input$structure,process=input$process_type, charge=input$ChargeStatus ,start=input$Start_structure, solvent=input$Solvent ,temperature=input$Temperature, energy_kj=input$energy_slider_kj, energy_kcal=input$energy_slider_kcal, color=input$Color, energy_measure=input$energy_measure,plot_only=TRUE){
+button_clicked<-function(structure=input$structure,process=input$process_type, charge=input$ChargeStatus ,start=input$Start_structure, solvent=input$Solvent ,temperature=input$Temperature, energy_kj=input$energy_slider_kj, energy_kcal=input$energy_slider_kcal, color=input$Color, energy_measure=input$energy_measure,plot_only=TRUE,Paper_Plotting=input$Paper_Plotting,MarginalHist=input$MarginalHist){
 
 ##get user input
 		a<-structure
@@ -87,7 +101,8 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 		g<-as.numeric(energy_kj)
 ##specific grey colors for energy
 	direction_color<-as.numeric(input$color_switch_energy)
-	grey_colors<-c("#2b2b2b","#707070","#b2b2b2")
+	#grey_colors<-c("#2b2b2b","#707070","#b2b2b2")
+	grey_colors<-viridis::viridis(3)#called grey colors due to historic reasons
 	if(direction_color==1){grey_colors=rev(grey_colors)}
 
 	
@@ -111,10 +126,10 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 	)}
 	print(dim(selected_data))
 ##when only 2 way comparison different colors
-	if(length(unique(selected_data[,color]))==2){palette=c("Set2")}else{palette=c("Spectral")}
+	if(length(unique(selected_data[,color]))==2){palette=c("Set2"); grey_colors=viridis::viridis(length(unique(selected_data[,color])));grey_colors[grey_colors=="#FDE725FF"]="#e6b710" }else{palette=c("Spectral")}
 	if(length(unique(selected_data[,color]))==1){palette=c("grey")}
 	print(palette)
-##adapt Energy based inputbased on slider
+##adapt Energy based input based on slider
 	title<-paste0(as.character(options),collapse="_")
 	PCA_results<-selected_data
 	color_user<-color
@@ -143,14 +158,63 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 	}else{	
 		if(color_user=="Energy_Unnamed_c"){color_user="Energy_Unnamed"}
 	  if(length(unique(selected_data[,color]))==1){
-	    p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_manual(values=palette)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+	    p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_manual(values=grey_colors)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
 	  }else{
 ##handle color advising when comparison to miniMD (always same color)
 		PCA_results$process<-factor(PCA_results$process, levels=c("MD","MD400K","MD500K","longMD","revSA","SA", "miniMD", "ConfGen","BEST" ,"miniPrime","miniConf","BEST_new","Prime_new","ConfGen_new"))
-	p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_brewer(palette=palette)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+	p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_manual(values=grey_colors)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
 	  }
 	}
-
+	##New visual adjustments to plot 
+	if(Paper_Plotting){
+	  #Axis labels deleted
+	  #translate cpdLabel
+	  if(a=="1"){cpdLabel="7"}
+	  if(a=="5"){cpdLabel="1"}
+	  if(a=="15"){cpdLabel="2"}
+	  if(a=="25"){cpdLabel="5"} # historic reasosn cpd 22 was mistaken with cpd 25 (only naming)
+	  if(a=="24"){cpdLabel="6"}
+	  if(a=="26"){cpdLabel="3"}
+	  if(a=="28"){cpdLabel="4"}
+	  #cpd Name and charge status as information to the plot
+	  PlotLabelText=paste0("cpd: ",as.character(cpdLabel),", ",as.character(c))
+	  PlotLabel <- grobTree(textGrob(PlotLabelText, x=0.95,  y=0.95, just=c(1,1),
+	                                 gp=gpar(col="black", fontsize=8, fontface="italic")))
+	  xAxisLabel <- grobTree(textGrob("PC1", x=0.95,  y=0.01, just=c(1,0),
+	                                  gp=gpar(col="black", fontsize=8)))
+	  yAxisLabel <- grobTree(textGrob("PC2", x=0.01,  y=0.80, just=c(0,1),rot=90,
+	                                  gp=gpar(col="black", fontsize=8)))
+	  
+	  if(any(unique(PCA_results[,color_user])%in%c("ConfGen","BEST" ,"miniPrime","miniConf","BEST_new","Prime_new","ConfGen_new"))){
+	    #create additional label and put in the middle top
+	    print(unique(PCA_results[,color_user]))
+	    labelText=unique(PCA_results[,color_user])[!grepl("MD",unique(PCA_results[,color_user]))]
+	    if(labelText=="miniPrime"){labelText="PMM"}
+	    if(labelText=="miniConf"){labelText="CONF"}
+	    PanelLabel <- grobTree(textGrob(labelText, x=0.01,  y=0.01, just=c(0,0),
+	                                    gp=gpar(col="black", fontsize=8)))
+	    #Give p value of overlap
+	    #make distance object
+	    nrow(PCA_results)
+	    print(paste0("A matrix with the dimensions: ",nrow(PCA_results), " x ",nrow(PCA_results)," is created TAKES TIME"))
+	    OverlapDist[[title]]<<-PCA_results
+	    
+	  }else{
+	    PanelLabel <- grobTree(textGrob("", x=0.01,  y=0.90, just=c(0,1),
+	                                    gp=gpar(col="black", fontsize=8)))
+	  }
+  	p=p+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y=element_blank(),axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  	    annotation_custom(PlotLabel)+
+  	    annotation_custom(xAxisLabel)+
+  	    annotation_custom(yAxisLabel)+
+  	    annotation_custom(PanelLabel)
+	  
+	}else{
+	  p=p+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+	}
+	if(MarginalHist){
+	  p=ggMarginal(p,type="density",groupColour = TRUE,groupFill=T)
+	}
 ##return results
 	if(plot_only==TRUE){
 		return(p)
@@ -172,7 +236,9 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 results_1<-eventReactive(input$go_1,{results<-button_clicked(plot_only=FALSE);return(results)})
 ###Plotting plot
 output$PCA_plot_1<-renderPlot({	results=results_1()$Plot;filename<-paste0(results_1()$Title,".png")
-				if(input$saves_1){set_panel_size(file=filename,p=results,output=input$radio)
+				if(input$saves_1){
+				  sendToSave<<-results
+				  set_panel_size(file=filename,p=results,output=input$radio)
 				}else{
 				test<<-results_1()
 				return(results)
@@ -256,38 +322,173 @@ output$PCA_plot_7<-renderPlot({	results=results_7()$Plot;filename<-paste0(result
 
 #############################################TAB2 DENSITY#####################################################################
 ##slider fuer tab2; reactive
-output$slider1<-renderUI({sliderInput("a","Slider_Plot1",min=1,max=100,value=round(sqrt(nrow(results_1()$Data)/2)))})
-output$slider2<-renderUI({sliderInput("b","Slider_Plot2",min=1,max=100,value=round(sqrt(nrow(results_2()$Data)/2)))})
-output$slider3<-renderUI({sliderInput("c","Slider_Plot3",min=1,max=100,value=round(sqrt(nrow(results_3()$Data)/2)))})
-output$slider4<-renderUI({sliderInput("d","Slider_Plot4",min=1,max=100,value=round(sqrt(nrow(results_4()$Data)/2)))})
-output$slider5<-renderUI({sliderInput("e","Slider_Plot5",min=1,max=100,value=round(sqrt(nrow(results_5()$Data)/2)))})
-output$slider6<-renderUI({sliderInput("f","Slider_Plot6",min=1,max=100,value=round(sqrt(nrow(results_6()$Data)/2)))})
-output$slider7<-renderUI({sliderInput("g","Slider_Plot7",min=1,max=100,value=round(sqrt(nrow(results_7()$Data)/2)))})
+output$slider1<-renderUI({sliderInput("a","Slider_Plot1",min=1,max=100,value=50)}) #round(sqrt(nrow(results_1()$Data)/2)))})
+output$slider2<-renderUI({sliderInput("b","Slider_Plot2",min=1,max=100,value=50)}) #round(sqrt(nrow(results_2()$Data)/2)))})
+output$slider3<-renderUI({sliderInput("c","Slider_Plot3",min=1,max=100,value=50)}) #round(sqrt(nrow(results_3()$Data)/2)))})
+output$slider4<-renderUI({sliderInput("d","Slider_Plot4",min=1,max=100,value=50)}) #round(sqrt(nrow(results_4()$Data)/2)))})
+output$slider5<-renderUI({sliderInput("e","Slider_Plot5",min=1,max=100,value=50)}) #round(sqrt(nrow(results_5()$Data)/2)))})
+output$slider6<-renderUI({sliderInput("f","Slider_Plot6",min=1,max=100,value=50)}) #round(sqrt(nrow(results_6()$Data)/2)))})
+output$slider7<-renderUI({sliderInput("g","Slider_Plot7",min=1,max=100,value=50)}) #round(sqrt(nrow(results_7()$Data)/2)))})
 
 ##Density creation of plot
-PCA_density<-function(PCA_input,slider_input){
+PCA_density<-function(PCA_input,process=input$process_type,slider_input,structure=input$structure,splitPerCondition=input$splitPerCondition,DotsOnTop=input$DotsOnTop,MarginalHist=input$MarginalHist2){
 ##setting up values from slider and input
 	print("Let do density")
-	results<-PCA_input;color_user<-results$color_user;PCA_results<-results$Data;title<-results$Title;bin_size<-as.numeric(slider_input)
-		if(color_user=="Energy_Unnamed"){
-			if(input$energy_measure==c("kj")) {color_user="Energy_kj_bin"
-			}else{color_user="Energy_kcal_bin"}}
-			
+  
+  results<-PCA_input;color_user<-results$color_user;PCA_results<-results$Data;title<-results$Title;bin_size<-as.numeric(slider_input)
+  print(color_user)
+  
+  if(color_user=="Energy_Unnamed"){
+		  
+			if(input$energy_measure==c("kj")) {
+			  color_user="Energy_kj_bin"
+			}else{
+			  color_user="Energy_kcal_bin"
+			}
+		  grey_colors<-viridis::plasma(4)[1:3]#called grey colors due to historic reasons
+		}else{
+		  print(length(unique(PCA_input$Plot$data[color_user,])))
+		  if((length(unique(PCA_input$Plot$data[color_user,])))!=0){
+		    print("Number before 0 ? ISSUE")
+		    grey_colors<-viridis::viridis(nrow(unique(renamedCol[,"color_user"])))#called grey colors due to historic reasons
+		    grey_colors[grey_colors=="#FDE725FF"]="#e6b710" # replace to bright yellow
+		  }else{
+		    grey_colors<-viridis::viridis(2)#called grey colors due to historic reasons
+		    grey_colors[grey_colors=="#FDE725FF"]="#e6b710" # replace to bright yellow
+		  }
+		  
+		}
+    print(color_user)
+    print(nrow(unique(PCA_input$Plot$data[color_user])))
 		which_process<-unique(PCA_results$process)
 		print(which_process)
+		renamedCol=PCA_results
+		colnames(renamedCol)[grepl(color_user,colnames(renamedCol))]="color_user"
+		print(colnames(renamedCol))
 		if("miniConf" %in% which_process |"miniPrime"%in% which_process|"BEST"%in% which_process| "all_process" %in% which_process){
-		if("miniConf" %in% which_process){process_game="miniConf"}
-		if("miniPrime"%in% which_process){process_game="miniPrime"}
-		if("BEST"%in% which_process){process_game="BEST"}
-		print("Attention! Works only if one of BEST/miniConf/miniPRIME is selected")
-		print("small Sample is in the game- will be plotted on top")
-##creating plots dealing with ConfGen data as there are too few
-		print("BEST/miniConf/miniPRIME data wird nicht in Dichte angezeigt! Diese Datapoints draufgemappet")
-		p<-ggplot(PCA_results,aes(x=PC1,y=PC2))+stat_density2d(data=subset(PCA_results, process != process_game),mapping=aes(color=as.factor(subset(PCA_results,process !=  process_game, select=color_user)[,1])),bins=bin_size,size=0.2) +scale_color_discrete("Condition")+geom_point(data=subset(PCA_results,subset= process == process_game),aes(color=as.factor(subset(PCA_results,subset= process == process_game,select=color_user)[,1])))+xlim(x_lim)+ylim(y_lim)+theme_bw()+theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
-		return(p)
-		}else{	p<-ggplot(PCA_results,aes(x=PC1,y=PC2))+stat_density2d(mapping=aes(color=PCA_results[,color_user]),bins=bin_size,size=0.2)+scale_color_discrete("Condition")+xlim(x_lim)+ylim(y_lim)+theme_bw()+theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
-		return(p)
+  		if("miniConf" %in% which_process){process_game="miniConf"}
+  		if("miniPrime"%in% which_process){process_game="miniPrime"}
+  		if("BEST"%in% which_process){process_game="BEST"}
+  		print("Attention! Works only if one of BEST/miniConf/miniPRIME is selected")
+  		print("small Sample is in the game- will be plotted on top")
+  ##creating plots dealing with ConfGen data as there are too few
+  		print("BEST/miniConf/miniPRIME data wird nicht in Dichte angezeigt! Diese Datapoints draufgemappet")
+  		if(color_user=="process"){
+  		 print(process_game)
+  	   testDensity<<-renamedCol
+  	   renamedCol=testDensity
+  	   
+  	   if(MarginalHist){
+  	     #First do both dots, get marginal, plot finally density with marignal
+  	     p<-ggplot(renamedCol,aes(x=PC1,y=PC2,color=color_user))+scale_color_manual(values=grey_colors)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title)
+  	     #p=ggMarginal(p,type="density",groupColour = TRUE,groupFill = T)
+  	     #p+theme_bw()
+  	     p<-ggplot(renamedCol,aes(x=PC1,y=PC2,fill=color_user))+
+  	       stat_density2d(data=subset(renamedCol, color_user != process_game),mapping=aes(color=as.factor(subset(renamedCol,color_user !=  process_game, select=color_user)[,1])),geom="polygon",bins=bin_size,size=0.2,alpha=0.1) +
+  	       geom_point(data=subset(renamedCol,subset= color_user == process_game),aes(color=as.factor(subset(renamedCol,subset= color_user == process_game,select=color_user)[,1])),size=0.5)+
+  	       scale_color_manual(values=grey_colors)+scale_fill_manual(values=grey_colors)+xlim(x_lim)+ylim(y_lim)+theme_bw()+
+  	       theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+  	     p=ggMarginal(p,renamedCol,x=renamedCol$PC1,y=renamedCol$PC2,type="density",groupColour = TRUE,groupFill = T)
+  	   }else{
+  	   
+  		  p<-ggplot(renamedCol,aes(x=PC1,y=PC2,fill=color_user))+
+  		    stat_density2d(data=subset(renamedCol, color_user != process_game),mapping=aes(color=as.factor(subset(renamedCol,color_user !=  process_game, select=color_user)[,1])),geom="polygon",bins=bin_size,size=0.2,alpha=0.1) +
+  		    geom_point(data=subset(renamedCol,subset= color_user == process_game),aes(color=as.factor(subset(renamedCol,subset= color_user == process_game,select=color_user)[,1])),size=0.5)+
+  		    scale_color_manual(values=grey_colors)+scale_fill_manual(values=grey_colors)+xlim(x_lim)+ylim(y_lim)+theme_bw()+
+  		    theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+  	    }
+  		 }else{
+  		  print("B")
+    		p<-ggplot(renamedCol,aes(x=PC1,y=PC2))+
+    		  stat_density2d(data=subset(renamedCol, process != process_game),mapping=aes(color=as.factor(subset(renamedCol,process !=  process_game, select=color_user)[,1])),geom="polygon",bins=bin_size,size=0.2,alpha=0.1) +
+    		  geom_point(data=subset(renamedCol,subset= process == process_game),aes(color=as.factor(subset(renamedCol,subset= process == process_game,select=color_user)[,1])))+
+    		  scale_color_manual(values=grey_colors)+scale_fill_manual(values=grey_colors)+xlim(x_lim)+ylim(y_lim)+theme_bw()+
+    		  theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+  		}
+		}else{	
+		  print("Do we reach here?")
+		  testData<<-renamedCol
+		p<-ggplot(renamedCol,aes(x=PC1,y=PC2,color=color_user,fill=color_user))+
+		  stat_density2d(geom="polygon",bins=bin_size,size=0.2,alpha=0.1)+
+		  scale_color_manual(values=grey_colors)+scale_fill_manual(values=grey_colors)+xlim(x_lim)+ylim(y_lim)+theme_bw()+
+		  theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+		
+		if("lowE_MD" %in% which_process |"lowE_MD" %in%  process){
+		  #plot "original 5 starting conformers as grey density contours in the back 
+		  print("Do we reach here?")
+		  #adjust names of start conformers for plotting reasons
+		  renamedCol$process=as.character(renamedCol$process)
+		  str(renamedCol)
+		  renamedCol[which(renamedCol$process!="lowE_MD"),"color_user"]="old"
+		  grey_colors=c(grey_colors[1:3],"grey")
+		  p<-ggplot(renamedCol,aes(x=PC1,y=PC2,color=color_user,fill=color_user))+
+		    stat_density2d(geom="polygon",bins=bin_size,size=0.2,alpha=0.1)+
+		    scale_color_manual(values=grey_colors)+scale_fill_manual(values=grey_colors)+xlim(x_lim)+ylim(y_lim)+theme_bw()+
+		    theme(aspect.ratio=1,legend.position="bottom",legend.text=element_text(size=8),axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
+		  
 		}
+		}
+		
+  #Axis labels deleted
+  #cpd Name and charge status as information to the plot
+	#PlotLabelText=paste0("cpd: ",as.character(a),", ",as.character(c))
+	
+  cpdLabel=unique(PCA_input$Plot$data$structure_derieved)
+  print(cpdLabel)
+  if(length(cpdLabel)==0){
+    cpdLabel=unique(renamedCol$structure_derieved)
+  }
+  # Tranlsate cpd Label to paper names
+  if(cpdLabel=="1"){cpdLabel="7"}
+  if(cpdLabel=="5"){cpdLabel="1"}
+  if(cpdLabel=="15"){cpdLabel="2"}
+  if(cpdLabel=="25"){cpdLabel="5"}
+  if(cpdLabel=="24"){cpdLabel="6"}
+  if(cpdLabel=="26"){cpdLabel="3"}
+  if(cpdLabel=="28"){cpdLabel="4"}
+  
+  chargeLabel=unique(PCA_input$Plot$data$charge_status)
+	PlotLabelText=paste0("cpd: ",cpdLabel,", ",chargeLabel)
+	PlotLabel <- grobTree(textGrob(PlotLabelText, x=0.95,  y=0.95, just=c(1,1),
+		                                 gp=gpar(col="black", fontsize=8, fontface="italic")))
+	xAxisLabel <- grobTree(textGrob("PC1", x=0.95,  y=0.01, just=c(1,0),
+		                                  gp=gpar(col="black", fontsize=8)))
+	yAxisLabel <- grobTree(textGrob("PC2", x=0.01,  y=0.80, just=c(0,1),rot=90,
+		                                  gp=gpar(col="black", fontsize=8)))
+	if(any(which_process%in%c("ConfGen","BEST" ,"miniPrime","miniConf","BEST_new","Prime_new","ConfGen_new"))){
+	  #create additional label and put in the middle top
+	  print(unique(PCA_results$Plot$data$process))
+	  labelText=unique(unique(which_process))[!grepl("MD",unique(which_process))]
+	  PanelLabel <- grobTree(textGrob(labelText, x=0.05,  y=0.1, just=c(0,0),
+	                                  gp=gpar(col="black", fontsize=8)))
+	}else{
+	  PanelLabel <- grobTree(textGrob("", x=0.01,  y=0.01, just=c(0,1),
+	                                  gp=gpar(col="black", fontsize=8)))
+	}
+	p=p+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(),axis.title.y=element_blank(),axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+		    annotation_custom(PlotLabel)+
+		    annotation_custom(xAxisLabel)+
+		    annotation_custom(yAxisLabel)+
+	      annotation_custom(PanelLabel)
+	
+	if(DotsOnTop){
+	  print("Dots will be plotted on Top")
+	  p=p+
+	    geom_point(size=0.00001)
+	}
+	
+	
+	if(splitPerCondition){
+	  print("Contour Plots will be separated")
+	  p=p+
+	    facet_grid(cols = vars(color_user))
+	}
+
+	
+
+		
+	return(p)
+		
 print("DONE")
 ##return results
 	#results<-list()
