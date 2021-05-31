@@ -18,6 +18,7 @@ setwd('../data/')
 PCA_results_all_data=readRDS('PCA_results_all_data.rds')
 shiny::shinyApp(ui,server)
 ```
+Note: The app does some preprocessing upon start, it is ready to go if you see two sliders on the left panel. Otherwise you might get an error after pressing GO. If this occurs, simply click GO again.
 ## Data Information
 We have completed long MD runs which were done over 10ns which are not included within the uploaded data set, as well as all Simulated Annelaing Runs, as well as the 500K MD run. Morever only PC1 to PC8 are given due to size restrictions. In case you have interest in such data email to leaseep@gmail.com and the full data will be provided.
 
