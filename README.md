@@ -14,7 +14,7 @@ The R object holds the standard information after an PCA as well as the complete
 setwd('program/') #go to the folder where MC_server.R and MC_ui.R are located
 source('MC_server.R')
 source('MC_ui.R')
-setwd('data/')
+setwd('../data/')
 PCA_results_all_data=readRDS('PCA_results_all_data.rds')
 shiny::shinyApp(ui,server)
 ```
