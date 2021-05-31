@@ -99,6 +99,7 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 		e<-solvent
 		f<-temperature
 		g<-as.numeric(energy_kj)
+		print(g)
 ##specific grey colors for energy
 	direction_color<-as.numeric(input$color_switch_energy)
 	#grey_colors<-c("#2b2b2b","#707070","#b2b2b2")
@@ -157,7 +158,7 @@ button_clicked<-function(structure=input$structure,process=input$process_type, c
 		}	
 	}else{	
 		if(color_user=="Energy_Unnamed_c"){color_user="Energy_Unnamed"}
-	  if(length(unique(selected_data[,color]))==1){
+	  if(length(unique(selected_data[,color_user]))==1){
 	    p<-ggplot(PCA_results,aes(x=PC1,y=PC2,color=PCA_results[,color_user]))+scale_color_manual(values=grey_colors)+geom_point(size=0.8)+ xlim(x_lim)+ylim(y_lim)+ labs(color=color_user, title=title) +theme_bw()+ theme(aspect.ratio=1,legend.position="bottom", legend.text=element_text(size=8), axis.text.x=element_text(size=8),axis.text.y=element_text(size=8))
 	  }else{
 ##handle color advising when comparison to miniMD (always same color)
@@ -346,6 +347,9 @@ PCA_density<-function(PCA_input,process=input$process_type,slider_input,structur
 			  color_user="Energy_kcal_bin"
 			}
 		  grey_colors<-viridis::plasma(4)[1:3]#called grey colors due to historic reasons
+		  grey_colors[grey_colors=="#ED7953FF"]="#0754fa"#replace the lighter blue with a more distinct blue
+		  grey_colors[grey_colors=="#0D0887FF"]="#e6b710" # replace to bright yellow
+		  grey_colors=rev(grey_colors)
 		}else{
 		  print(length(unique(PCA_input$Plot$data[color_user,])))
 		  if((length(unique(PCA_input$Plot$data[color_user,])))!=0){
@@ -359,6 +363,7 @@ PCA_density<-function(PCA_input,process=input$process_type,slider_input,structur
 		  
 		}
     print(color_user)
+    print(grey_colors)
     print(nrow(unique(PCA_input$Plot$data[color_user])))
 		which_process<-unique(PCA_results$process)
 		print(which_process)
@@ -447,7 +452,9 @@ PCA_density<-function(PCA_input,process=input$process_type,slider_input,structur
   if(cpdLabel=="26"){cpdLabel="3"}
   if(cpdLabel=="28"){cpdLabel="4"}
   
-  chargeLabel=unique(PCA_input$Plot$data$charge_status)
+  chargeLabel=unique(renamedCol$charge_status)
+
+  print(chargeLabel)
 	PlotLabelText=paste0("cpd: ",cpdLabel,", ",chargeLabel)
 	PlotLabel <- grobTree(textGrob(PlotLabelText, x=0.95,  y=0.95, just=c(1,1),
 		                                 gp=gpar(col="black", fontsize=8, fontface="italic")))
@@ -636,7 +643,7 @@ Light_PCA_go<-function(PCA_input,threshold=input$threshold,jitter_factor=input$j
 	if(nrow(tmp)==0){
 		print(bin)
 		}else{
-	##evaluate which conditions (wonach wird gefärbt??) are present and which show the same informtion
+	##evaluate which conditions (wonach wird gefÃ¤rbt??) are present and which show the same informtion
 	categories<-table(tmp[,color_user])
 	categories<-as.data.frame(categories)
 	##give each cateogrie based on its frequency in the bin a bigger dot 
@@ -651,7 +658,7 @@ Light_PCA_go<-function(PCA_input,threshold=input$threshold,jitter_factor=input$j
 		y_coord<-strsplit(bin, "_")[[1]][4]
 		y_coord<-strsplit(y_coord,",")[[1]]
 		y_coord<-(as.numeric(y_coord[1])+as.numeric(y_coord[2]))/2
-	##Wie viele neue Punkte (jetzt binned große Punte)
+	##Wie viele neue Punkte (jetzt binned groÃŸe Punte)
 		no_of_points<-length(unique(as.character(categories$Var1)))
 		new_points<-data.frame(matrix(ncol=ncol(PCA_to_hm), nrow=no_of_points,NA))
 		colnames(new_points)<-colnames(PCA_to_hm)
